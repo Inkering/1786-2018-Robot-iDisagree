@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj.drive.*;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.DigitalInput;
 
 import com.ctre.phoenix.motorcontrol.can.*;
 import com.kauailabs.navx.frc.AHRS;
@@ -39,6 +40,8 @@ public class Robot extends IterativeRobot {
 	
 	Spark armLController = new Spark(1);
 	Spark armRController = new Spark(1);
+	
+	WPI_TalonSRX liftTalon = new WPI_TalonSRX(7);
 	
 	Compressor compressor = new Compressor(); // only one compressor in system
 	Solenoid shifter = new Solenoid(0);
@@ -113,8 +116,7 @@ public class Robot extends IterativeRobot {
 		talonR4.configPeakCurrentDuration(peakTimeDuration, 0); // same as the other one
 		talonR4.configPeakCurrentLimit(maxPeakAmp, 0);
 		talonR4.configContinuousCurrentLimit(maxCountAmp, 0);
-		talonR4.enableCurrentLimit(true);
-		
+		talonR4.enableCurrentLimit(true);	
 	}
 	
 	@Override
@@ -186,6 +188,7 @@ public class Robot extends IterativeRobot {
 		
 	}
 	
+	// run the arms forwards or backwards
 	private void teleopArms(int pov) {
 		if (pov == 0) {
 			armLController.set(1);
@@ -195,6 +198,11 @@ public class Robot extends IterativeRobot {
 			armRController.set(-1);
 		}
 		
+	}
+	
+	// use a talon srx breakout board for hardwired limit switches
+	private void teleopLift(double y) {
+		liftTalon.set(y);
 	}
 	
 	@Override
