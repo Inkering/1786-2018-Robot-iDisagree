@@ -25,6 +25,7 @@ public class Robot extends IterativeRobot {
 	/* CONSTANT VALUES */
 	final int SHIFTER = 3;
 	final int ACCDRIVE = 6;
+	final int REVDRIVE = 5;
 	
 	
 	WPI_TalonSRX talonL1 = new WPI_TalonSRX(1); // left Side talons
@@ -46,6 +47,7 @@ public class Robot extends IterativeRobot {
 	private Double driveDeadband = .05; // defines the deadzone of the myRobot object
 	private Double shiftLimit = 0.2; // defines upper maximum rate of movement that shifting is allowed in
 	
+	boolean reversedDrive;
 	boolean accurateDrive;
 	boolean shifted;
 	
@@ -117,22 +119,14 @@ public class Robot extends IterativeRobot {
 
 	@Override
 	public void teleopInit() {
+		reversedDrive = false;
 		accurateDrive = false;
 		shifted = false;
 	}
 	/**
 	 * This function is called periodically during operator control.
 	 */
-	@Override
-	public void teleopPeriodic() {
-		
-		//get joystick axis values for use later.
-		Double driveX = gamepad.getX();// puts the left joysticks X value into a variable
-		Double driveZ = gamepad.getZ();// puts the left joysticks Z value into a variable
-		Double driveY = -gamepad.getY(); // inverts the y value so that foward is foward	
-		Double driveTwist = gamepad.getTwist();
-		
-		/* BEGIN DRIVE CODE */
+	private void teleopDrive(double y, double z) {
 		
 		//myRobot.arcadeDrive(driveY, driveZ, true); // allows the robot to drive with squared inputs using the y and z values from the left joystick
 		if(gamepad.getRawButtonPressed(ACCDRIVE) && accurateDrive) {
@@ -141,13 +135,43 @@ public class Robot extends IterativeRobot {
 			accurateDrive = true;
 		}
 		
-		if(accurateDrive) {
-			myRobot.curvatureDrive(driveY, driveZ, true);
-		} else {
-			myRobot.curvatureDrive(driveY, driveZ, false);
-		};
-		/* END DRIVE CODE */
+		if(gamepad.getRawButtonPressed(REVDRIVE) && reversedDrive) {
+			reversedDrive = false;
+		} else if (gamepad.getRawButton(REVDRIVE) && !reversedDrive) {
+			reversedDrive = false;
+		}
 		
+		/* checks for both reversal and accuracy modes
+		 * Truth Table
+		 * ---------
+		 * | 1 | 0 |
+		 * | 0 | 1 |
+		 * | 1 | 1 |
+		 * | 0 | 0 |
+		 * ---------
+		*/
+		if(accurateDrive && !reversedDrive) {
+			myRobot.curvatureDrive(y, z, true);
+		} else if(!accurateDrive && reversedDrive) {
+			myRobot.curvatureDrive(-y, z, false);
+		} else if(accurateDrive && reversedDrive) {
+			myRobot.curvatureDrive(-y, z, true);
+		}  else if(!accurateDrive && !reversedDrive) {
+			myRobot.curvatureDrive(y, z, false);
+		}
+	}
+	
+	@Override
+	public void teleopPeriodic() {
+		
+		//get joystick axis values for use later.
+		Double driveX = gamepad.getX();
+		Double driveZ = gamepad.getZ();
+		Double driveY = gamepad.getY();
+		Double driveTwist = gamepad.getTwist();
+		
+		teleopDrive(driveY, driveZ);
+
 		/* BEGIN PNEUMATICS CODE */
 		//run the compressor if the pressure is low
 		// TODO add compressor current limiting and calibrate
