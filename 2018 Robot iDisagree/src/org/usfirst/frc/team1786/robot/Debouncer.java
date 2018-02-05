@@ -46,11 +46,12 @@ public class Debouncer {
 		if(joystick.getRawButton(buttonNum)) {
 			if ((now - latest) > period) {
 				latest = now;
+				System.out.println("shift bounced!");
 				return true;
+			} else {
+				return false;
 			}
-		};
+		}
 		return false;
 	}
-		
-
 };

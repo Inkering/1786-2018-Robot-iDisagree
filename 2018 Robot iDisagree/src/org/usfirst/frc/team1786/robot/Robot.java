@@ -14,7 +14,7 @@ import edu.wpi.first.wpilibj.drive.*;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.Spark;
-import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Timer;
 
 import com.ctre.phoenix.motorcontrol.can.*;
 import com.kauailabs.navx.frc.AHRS;
@@ -29,7 +29,7 @@ public class Robot extends IterativeRobot {
 	final int SHIFTER = 3; // rightmost pad button
 	final int QTURN = 6; // right trigger
 	final int REVDRIVE = 5; // left trigger
-	
+		
 	WPI_TalonSRX talonL1 = new WPI_TalonSRX(1); // left Side talons
 	WPI_TalonSRX talonL2 = new WPI_TalonSRX(2);
 	WPI_TalonSRX talonL3 = new WPI_TalonSRX(3);
@@ -37,6 +37,9 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX talonR5 = new WPI_TalonSRX(5);
 	WPI_TalonSRX talonR6 = new WPI_TalonSRX(6);
 	DifferentialDrive drivetrain = new DifferentialDrive(talonL1, talonR4);
+	
+	Timer timer;
+	boolean shiftBtn;
 	
 //	Spark armLController = new Spark(1);
 //	Spark armRController = new Spark(1);
@@ -127,26 +130,20 @@ public class Robot extends IterativeRobot {
 	public void autonomousPeriodic() {
 	}
 
-	@Override
-	public void teleopInit() {
-		reversedDrive = false;
-		quickTurn = false;
-		shifted = false;
-	}
-
 	// run the drivetrain in "curvature" style
 	private void teleopCurvatureDrive(double y, double z) {
 		
 		//toggle logic for quick turning
-		if(gamepad.getRawButton(QTURN) && quickTurn) {
+		//TODO check if this logic works
+		if(gamepad.getRawButtonPressed(QTURN) && quickTurn) {
 			quickTurn = false;
-		} else if (gamepad.getRawButton(QTURN) && !quickTurn) {
+		} else if (gamepad.getRawButtonPressed(QTURN) && !quickTurn) {
 			quickTurn = true;
 		}
 		
-		if(gamepad.getRawButton(REVDRIVE) && reversedDrive) {
+		if(gamepad.getRawButtonPressed(REVDRIVE) && reversedDrive) {
 			reversedDrive = false;
-		} else if (gamepad.getRawButton(REVDRIVE) && !reversedDrive) {
+		} else if (gamepad.getRawButtonPressed(REVDRIVE) && !reversedDrive) {
 			reversedDrive = true;
 		}
 		
@@ -173,9 +170,9 @@ public class Robot extends IterativeRobot {
 	// run the drivetrain in "arcade" style
 	private void teleopArcadeDrive(double y, double z) {
 		
-		if(gamepad.getRawButton(REVDRIVE) && reversedDrive) {
+		if(gamepad.getRawButtonPressed(REVDRIVE) && reversedDrive) {
 			reversedDrive = false;
-		} else if (gamepad.getRawButton(REVDRIVE) && !reversedDrive) {
+		} else if (gamepad.getRawButtonPressed(REVDRIVE) && !reversedDrive) {
 			reversedDrive = false;
 		}
 		
@@ -204,6 +201,12 @@ public class Robot extends IterativeRobot {
 //	private void teleopLift(double y) {
 //		liftTalon.set(y);
 //	}
+	@Override
+	public void teleopInit() {
+		reversedDrive = false;
+		quickTurn = false;
+		shifted = false;
+	}
 	
 	@Override
 	public void teleopPeriodic() {
@@ -221,33 +224,32 @@ public class Robot extends IterativeRobot {
 		// TODO calibrate wiring to be correct for switch variable
 		// e.g. true = low pressure
 		// 		false = acceptable pressure
-//		if(!compressor.getPressureSwitchValue()) {
-//			System.out.println("running compressor in teleop!");
-//			compressor.setClosedLoopControl(true);
-//		} else {
-//			compressor.setClosedLoopControl(false);
-//		}
+		
+		if(!compressor.getPressureSwitchValue()) {
+			System.out.println("running compressor in teleop!");
+			compressor.setClosedLoopControl(true);
+		} else {
+			compressor.setClosedLoopControl(false);
+		}
 		
 		//run the shifter pnuematic cylinder
 		//shifts when the shifting button is pressed and pressure is sufficient for shifting
 		// TODO add timer to wait for movement between shifts 
-		// TODO calibrate wiring to set reasonable defaul solenoid movements
-		if(gamepad.getRawButton(SHIFTER) && shifted) {
-			shifted = false;
+		if(gamepad.getRawButtonPressed(SHIFTER) && shifted) {
+			shifter.set(true);
 		} else if
-		(gamepad.getRawButton(SHIFTER) && !shifted) {
-			shifted = true;
+		(gamepad.getRawButtonPressed(SHIFTER) && !shifted) {
+			shifter.set(false);
 		}
 		
 		//prevent shifting if moving at high speeds
 		// TODO calibrate shiftLimit Value
-		if (shifted) {
-			System.out.println("shifted true!");
-			shifter.set(true); //push out
+		if (shifted && (driveY < shiftLimit && driveZ < shiftLimit)) {
+			shifter.set(true);
 		} else {
-			shifter.set(false); //pull in
+			shifter.set(false);
 		}
-		/* END PNUEMATICS CODE */
+/* END PNUEMATICS CODE */
 		
 		//put data on dashboard
 		dashboardUpdate();
@@ -261,8 +263,8 @@ public class Robot extends IterativeRobot {
 		
 		// Fill the compressor during autonomous
 		// TODO calibrate wiring to be correct for switch variable
-		// e.g. true = low pressure
-		// 		false = acceptable pressure
+		// e.g. switch value false = low pressure
+		// 		switch value true = acceptable pressure
 		while(compressor.getPressureSwitchValue() == false)
 		{
 			compressor.setClosedLoopControl(true);
