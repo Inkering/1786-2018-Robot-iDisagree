@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.drive.*;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.Compressor;
+import edu.wpi.first.wpilibj.Spark;
 
 import com.ctre.phoenix.motorcontrol.can.*;
 import com.kauailabs.navx.frc.AHRS;
@@ -23,10 +24,10 @@ public class Robot extends IterativeRobot {
 	Joystick gamepad = new Joystick(0);
 	
 	/* CONSTANT VALUES */
-	final int SHIFTER = 3;
-	final int ACCDRIVE = 6;
-	final int REVDRIVE = 5;
 	
+	final int SHIFTER = 3; // rightmost pad button
+	final int QTURN = 6; // right trigger
+	final int REVDRIVE = 5; // left trigger
 	
 	WPI_TalonSRX talonL1 = new WPI_TalonSRX(1); // left Side talons
 	WPI_TalonSRX talonL2 = new WPI_TalonSRX(2);
@@ -34,8 +35,10 @@ public class Robot extends IterativeRobot {
 	WPI_TalonSRX talonR4 = new WPI_TalonSRX(4); // right Side Talons
 	WPI_TalonSRX talonR5 = new WPI_TalonSRX(5);
 	WPI_TalonSRX talonR6 = new WPI_TalonSRX(6);
+	DifferentialDrive drivetrain = new DifferentialDrive(talonL1, talonR4);
 	
-	DifferentialDrive myRobot = new DifferentialDrive(talonL1, talonR4);
+	Spark armLController = new Spark(1);
+	Spark armRController = new Spark(1);
 	
 	Compressor compressor = new Compressor(); // only one compressor in system
 	Solenoid shifter = new Solenoid(0);
@@ -44,11 +47,11 @@ public class Robot extends IterativeRobot {
 	private int maxCountAmp = 40; // defines the max amp that can be given to a CIM motor after its peak
 	private int peakTimeDuration = 10000; // defines how long the peak will last in milliseconds
 	
-	private Double driveDeadband = .05; // defines the deadzone of the myRobot object
+	private Double driveDeadband = .05; // defines the deadzone of the drivetrain object
 	private Double shiftLimit = 0.2; // defines upper maximum rate of movement that shifting is allowed in
 	
 	boolean reversedDrive;
-	boolean accurateDrive;
+	boolean quickTurn;
 	boolean shifted;
 	
 	private void dashboardUpdate() {
@@ -75,7 +78,7 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putNumber("drive Z value", gamepad.getZ());
 		SmartDashboard.putNumber("drive twist value", gamepad.getTwist());
 		SmartDashboard.putBoolean("is shift button pressed", gamepad.getRawButton(SHIFTER));
-		SmartDashboard.putBoolean("is acc drive button pressed", gamepad.getRawButton(ACCDRIVE));
+		SmartDashboard.putBoolean("is acc drive button pressed", gamepad.getRawButton(QTURN));
 		
 		// compressor and solenoid information (bools)
 		SmartDashboard.putBoolean("solenoid drive shifter ID 0 state", shifter.get());
@@ -91,9 +94,9 @@ public class Robot extends IterativeRobot {
 		talonR6.follow(talonR4);
 
 		//we can just set motor safety for the differentialDrive object
-		myRobot.setDeadband(driveDeadband);
-		myRobot.setSafetyEnabled(true);
-		myRobot.setExpiration(100);
+		drivetrain.setDeadband(driveDeadband);
+		drivetrain.setSafetyEnabled(true);
+		drivetrain.setExpiration(100);
 		
 		// Configure talon amp limits
 		talonL1.configPeakCurrentDuration(peakTimeDuration, 0); // sets the duration of the peak
@@ -106,13 +109,11 @@ public class Robot extends IterativeRobot {
 		talonR4.enableCurrentLimit(true);
 		
 	}
+	
 	@Override
 	public void autonomousInit() {
 	}
 
-	/**
-	 * This function is called periodically during autonomous.
-	 */
 	@Override
 	public void autonomousPeriodic() {
 	}
@@ -120,19 +121,18 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void teleopInit() {
 		reversedDrive = false;
-		accurateDrive = false;
+		quickTurn = false;
 		shifted = false;
 	}
-	/**
-	 * This function is called periodically during operator control.
-	 */
-	private void teleopDrive(double y, double z) {
+
+	// run the drivetrain in "curvature" style
+	private void teleopCurvatureDrive(double y, double z) {
 		
-		//myRobot.arcadeDrive(driveY, driveZ, true); // allows the robot to drive with squared inputs using the y and z values from the left joystick
-		if(gamepad.getRawButtonPressed(ACCDRIVE) && accurateDrive) {
-			accurateDrive = false;
-		} else if (gamepad.getRawButtonPressed(ACCDRIVE) && !accurateDrive) {
-			accurateDrive = true;
+		//toggle logic for quick turning
+		if(gamepad.getRawButtonPressed(QTURN) && quickTurn) {
+			quickTurn = false;
+		} else if (gamepad.getRawButtonPressed(QTURN) && !quickTurn) {
+			quickTurn = true;
 		}
 		
 		if(gamepad.getRawButtonPressed(REVDRIVE) && reversedDrive) {
@@ -150,28 +150,58 @@ public class Robot extends IterativeRobot {
 		 * | 0 | 0 |
 		 * ---------
 		*/
-		if(accurateDrive && !reversedDrive) {
-			myRobot.curvatureDrive(y, z, true);
-		} else if(!accurateDrive && reversedDrive) {
-			myRobot.curvatureDrive(-y, z, false);
-		} else if(accurateDrive && reversedDrive) {
-			myRobot.curvatureDrive(-y, z, true);
-		}  else if(!accurateDrive && !reversedDrive) {
-			myRobot.curvatureDrive(y, z, false);
+		if(quickTurn && !reversedDrive) {
+			drivetrain.curvatureDrive(y, z, true);
+		} else if(!quickTurn && reversedDrive) {
+			drivetrain.curvatureDrive(-y, z, false);
+		} else if(quickTurn && reversedDrive) {
+			drivetrain.curvatureDrive(-y, z, true);
+		}  else if(!quickTurn && !reversedDrive) {
+			drivetrain.curvatureDrive(y, z, false);
 		}
+	}
+	
+	// run the drivetrain in "arcade" style
+	private void teleopArcadeDrive(double y, double z) {
+		
+		if(gamepad.getRawButtonPressed(REVDRIVE) && reversedDrive) {
+			reversedDrive = false;
+		} else if (gamepad.getRawButton(REVDRIVE) && !reversedDrive) {
+			reversedDrive = false;
+		}
+		
+		// checks for both reversal mode
+		if (reversedDrive) {
+			drivetrain.arcadeDrive(-y, z,true);
+		} else {
+			drivetrain.arcadeDrive(y, z, true);
+		}
+		
+	}
+	
+	private void teleopArms(int pov) {
+		if (pov == 0) {
+			armLController.set(1);
+			armRController.set(1);
+		} else if (pov == 180) {
+			armLController.set(-1);
+			armRController.set(-1);
+		}
+		
 	}
 	
 	@Override
 	public void teleopPeriodic() {
 		
 		//get joystick axis values for use later.
-		Double driveX = gamepad.getX();
-		Double driveZ = gamepad.getZ();
-		Double driveY = gamepad.getY();
-		Double driveTwist = gamepad.getTwist();
+		Double driveZ = gamepad.getZ(); // left/right on right stick
+		Double driveY = gamepad.getY(); // forward/backward on left stick
+		int top = gamepad.getPOV(); //0 is up, 180 is down, 90 is right, 270 is left
 		
-		teleopDrive(driveY, driveZ);
+		teleopCurvatureDrive(driveY, driveZ);
 
+		teleopArms(top);
+		
 		/* BEGIN PNEUMATICS CODE */
 		//run the compressor if the pressure is low
 		// TODO add compressor current limiting and calibrate
