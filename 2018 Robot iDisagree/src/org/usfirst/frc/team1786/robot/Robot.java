@@ -87,13 +87,20 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void robotInit() {
+		
 		// configure talon followers.
 		talonL2.follow(talonL1); 
 		talonL3.follow(talonL1);
 		talonR5.follow(talonR4);
 		talonR6.follow(talonR4);
 
-		//we can just set motor safety for the differentialDrive object
+		// configure motor safety for arm controllers
+		armLController.setSafetyEnabled(true);
+		armRController.setSafetyEnabled(true);
+		armLController.setExpiration(100);
+		armRController.setExpiration(100);
+		
+		// we can just set motor safety for the differentialDrive object
 		drivetrain.setDeadband(driveDeadband);
 		drivetrain.setSafetyEnabled(true);
 		drivetrain.setExpiration(100);
