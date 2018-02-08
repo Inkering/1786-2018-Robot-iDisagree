@@ -216,15 +216,14 @@ public class Robot extends IterativeRobot {
 		Double driveY = gamepad.getY(); // forward/backward on left stick
 		int top = gamepad.getPOV(); //0 is up, 180 is down, 90 is right, 270 is left
 		
-		teleopCurvatureDrive(driveY, driveZ);
+		teleopArcadeDrive(driveY, driveZ);
 		
 		/* BEGIN PNEUMATICS CODE */
 		//run the compressor if the pressure is low
 		// TODO add compressor current limiting and calibrate
 		// TODO calibrate wiring to be correct for switch variable
 		// e.g. true = low pressure
-		// 		false = acceptable pressure
-		
+		// 		false = acceptable pressure	
 		if(!compressor.getPressureSwitchValue()) {
 			System.out.println("running compressor in teleop!");
 			compressor.setClosedLoopControl(true);
@@ -249,7 +248,7 @@ public class Robot extends IterativeRobot {
 		} else {
 			shifter.set(false);
 		}
-/* END PNUEMATICS CODE */
+		/* END PNUEMATICS CODE */
 		
 		//put data on dashboard
 		dashboardUpdate();
